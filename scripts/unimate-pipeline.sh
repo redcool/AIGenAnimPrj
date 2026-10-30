@@ -55,7 +55,7 @@ INPUT="$(abs_path "$INPUT")"
 stem=$(basename "${INPUT%.*}")
 safe=$("$PY" -c "import re,sys;print(re.sub(r'[- \t\[\]?*]+','_',sys.argv[1]).strip('_') or 'asset')" "$stem")
 [ -n "$NAME" ] || NAME="$safe"
-[ -n "$OUT_SAMPLES" ] || OUT_SAMPLES="$SAMPLES_HOME/$NAME"
+[ -n "$OUT_SAMPLES" ] || OUT_SAMPLES="$(from_unimate "$SAMPLES_HOME")/$NAME"
 [ ${#PROMPTS[@]} -gt 0 ] || PROMPTS=("An object stands still." "An object walks forward." "An object runs forward.")
 
 # 目标关节数：人体专用权重（目录名带 mixamo）固定 22 根；通用权重用 --max-joints
@@ -123,7 +123,7 @@ fi
 # ---------------- 3. rig_preprocess ----------------
 echo
 echo "== [3/5] rig_preprocess（打标签 / 烘 canonical）"
-RIG_DIR="$RIGS_HOME/$NAME"
+RIG_DIR="$(from_unimate "$RIGS_HOME")/$NAME"
 if [ -f "$RIG_DIR/cond.npy" ] && [ "$FORCE" = 0 ]; then
   echo "  跳过：$RIG_DIR/cond.npy 已存在（要重做加 --force）"
 else
