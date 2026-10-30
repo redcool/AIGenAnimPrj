@@ -35,16 +35,17 @@ export CONDA_ENV="${CONDA_ENV:-unimate}"
 # xet 下载后端在本机网络下会挂住，走普通 HTTP
 export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
 
-EXP_DIR="${EXP_DIR:-${UNIMATE_EXP:-outputs/unimate_uniml3d_f60_v3}}"
-SAMPLES_HOME="${SAMPLES_HOME:-${UNIMATE_SAMPLES:-outputs/samples}}"
-RIGS_HOME="${RIGS_HOME:-${UNIMATE_RIGS:-outputs/rig}}"
-export EXP_DIR SAMPLES_HOME RIGS_HOME
-
-# 相对路径按 UNIMATE_HOME 解析
-from_unimate() {
+# 权重和产物都放在本工程里；相对路径按 PIPELINE_HOME 解析，统一导出成绝对路径，
+# 这样后面不管 cd 到哪里都不会错。
+from_project() {
   case "$1" in
     /*) printf '%s' "$1" ;;
-    *)  printf '%s/%s' "$UNIMATE_HOME" "$1" ;;
+    *)  printf '%s/%s' "$PIPELINE_HOME" "$1" ;;
   esac
 }
 abs_path() { readlink -f "$1" 2>/dev/null || printf '%s/%s' "$PWD" "$1"; }
+
+EXP_DIR="$(from_project "${EXP_DIR:-${UNIMATE_EXP:-models/unimate_mixamo_f60_v2}}")"
+SAMPLES_HOME="$(from_project "${SAMPLES_HOME:-${UNIMATE_SAMPLES:-outputs/samples}}")"
+RIGS_HOME="$(from_project "${RIGS_HOME:-${UNIMATE_RIGS:-outputs/rig}}")"
+export EXP_DIR SAMPLES_HOME RIGS_HOME

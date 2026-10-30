@@ -65,7 +65,7 @@ if [ "$CLOSE" = 1 ]; then
   echo "== [0/3] 模型闭环：让模型把末帧收回首帧"
   [ -n "$RIG_DIR" ] || { echo "  缺少 --rig，闭环建 cond 需要它" >&2; exit 2; }
   WORK="$OUT/closed"
-  run "$PY" "$TOOLS/loop_close.py" --samples "$SAMPLES" --exp-dir "$(from_unimate "$EXP_DIR")" \
+  run "$PY" "$TOOLS/loop_close.py" --samples "$SAMPLES" --exp-dir "$EXP_DIR" \
       --asset "$RIG_DIR" --out "$WORK" --pin-tail "$PIN"
 else
   echo

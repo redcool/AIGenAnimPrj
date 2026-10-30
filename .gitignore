@@ -9,6 +9,8 @@ tmp/
 __pycache__/
 *.pyc
 
-# 产物（体积大，放 UniMate/outputs 外面也一样）
+# 权重和产物：体积大，不入库（下载方式见 AGENTS.md）
+models/
 outputs/
+dataset/
 *.npy

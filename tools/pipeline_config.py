@@ -58,25 +58,35 @@ def python_exe() -> str:
     return cfg("UNIMATE_PYTHON", default="python3")
 
 
+def under_project(value: str) -> pathlib.Path:
+    """相对路径按本工程根目录解析；绝对路径原样返回。
+
+    权重和产物都放在本工程里（models/ 和 outputs/），不放进 UniMate 仓库 ——
+    上游随时可能被重新克隆或清理。
+    """
+    p = pathlib.Path(value).expanduser()
+    return p if p.is_absolute() else (REPO_ROOT / p)
+
+
 def under_unimate(value: str) -> pathlib.Path:
-    """相对路径按 UNIMATE_HOME 解析；绝对路径原样返回。"""
+    """相对路径按 UNIMATE_HOME 解析（给需要指向上游仓库的场景用）。"""
     p = pathlib.Path(value).expanduser()
     return p if p.is_absolute() else (unimate_home() / p)
 
 
 def exp_dir() -> pathlib.Path:
-    """权重目录（含 config.json 和 checkpoints/）。"""
-    return under_unimate(cfg("UNIMATE_EXP", required=True))
+    """权重目录（含 config.json 和 checkpoints/），默认 models/unimate_mixamo_f60_v2。"""
+    return under_project(cfg("UNIMATE_EXP", default="models/unimate_mixamo_f60_v2"))
 
 
 def samples_home() -> pathlib.Path:
-    """采样结果的根目录。"""
-    return under_unimate(cfg("UNIMATE_SAMPLES", default="outputs/samples"))
+    """采样结果的根目录，默认 outputs/samples。"""
+    return under_project(cfg("UNIMATE_SAMPLES", default="outputs/samples"))
 
 
 def rigs_home() -> pathlib.Path:
-    """rig_preprocess 产物的根目录。"""
-    return under_unimate(cfg("UNIMATE_RIGS", default="outputs/rig"))
+    """rig_preprocess 产物的根目录，默认 outputs/rig。"""
+    return under_project(cfg("UNIMATE_RIGS", default="outputs/rig"))
 
 
 def check_pinned_version(home: pathlib.Path) -> str:

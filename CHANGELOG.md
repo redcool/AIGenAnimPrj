@@ -3,6 +3,18 @@
 版本号规则（见 Agent工作纪律.md 第 6 条）：
 x 世代版本（人手）、y 大版本（人手）、z 大功能（agent 可动）、w 小改动（agent 可动）。
 
+## 1.0.0.3
+
+- **权重和产物搬进本工程**：`models/`（权重）+ `outputs/`（rig 产物、采样结果），
+  一起加进 `.gitignore`。理由：上游 UniMate 随时可能被重新克隆或清理，权重放它里面很危险。
+- **配置语义变化**：`UNIMATE_EXP` / `UNIMATE_SAMPLES` / `UNIMATE_RIGS` 的相对路径基准
+  从 `UNIMATE_HOME` 改成**本工程根目录**，并在 `_env.sh` 里统一转成绝对路径导出。
+- 历史 `manifest.json` / 报告里的路径批量改写到新位置（16 个文件），已有产物不用重新采样。
+- 新增 `scripts/install_blender_shim.sh`：UniMate 的导出脚本写死调用 `blender`，
+  这个脚本把调用接到 pip 的 bpy 上（没有装 Blender 也能导出）。
+- 新增 `AGENTS.md`：权重 / 数据集下载方式、产物结构、硬约束、排错速查。
+- 修：`setup.sh` 的版本校验把注释行当成了 commit。
+
 ## 1.0.0.2
 
 - 修：流水线的 rig / 采样目录改成绝对路径。原来打印相对路径，用户换个
