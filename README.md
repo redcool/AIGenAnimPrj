@@ -15,6 +15,10 @@
 
 ## 快速开始
 
+**前提：模型已经绑定好**（一个 armature + 蒙皮网格）。
+UniMate 不做自动绑骨/蒙皮，绑定要在外部工具里完成——用什么工具、怎么接进来，见
+[AGENTS.md](AGENTS.md) 第 5 节。
+
 ```bash
 # 1. 配置（config.env 不入库）
 cp config.example.env config.env
@@ -25,8 +29,10 @@ cp config.example.env config.env
 bash setup.sh
 bash scripts/install_blender_shim.sh   # 一次性：让 UniMate 的 blender 调用走 bpy
 
-# 3. 看看模型有几根关节
+# 3. 体检：关节数、是否绑定、有没有空权重顶点
 bash scripts/unimate-inspect.sh --input /path/to/model.fbx --no-bones
+#    超限先精简（Mixamo 绑定用 --mode mixamo，其它骨架用 --drop 正则）
+bash scripts/unimate-simplify.sh --input /path/to/model.fbx --mode mixamo
 
 # 4. 一条龙：体检 -> 精简 -> 打标签 -> 采样 -> 导出
 bash scripts/unimate-pipeline.sh --input /path/to/model.fbx --reps 3

@@ -118,22 +118,87 @@ outputs/
 不是下载产物。注意 manifest 里存的是**绝对路径**，换机器后这些路径会失效，
 需要重新采样（或者在 manifest 里改路径再跑 `unimate-animate.sh`）。
 
-## 5. 从零到出片
+## 5. 资产从哪来：绑定这一步不在本工程里
+
+**UniMate 不做自动绑定。** 它的输入必须已经是一个 armature + 蒙皮网格，输出只有动作。
+手上只有没绑定的网格时，先在外部工具里把绑定做掉，再回到本工程。
+
+### 5.1 rig_preprocess 不是「自动绑骨」
+
+名字容易误会。它做四件事，没有一件是生成骨架：
+
+| 步骤 | 做 | 不做 |
+|---|---|---|
+| 1 Export | 读入你的骨架，剪掉不带动画的辅助骨 | 不生成骨 |
+| 2 Annotate | 把**已有**骨头映射到标签词表、选朝向对 | 不改骨名与层级 |
+| 3 Features | 算 T-pose / 层级 / 拓扑，写 `cond.npy` | 不算蒙皮权重 |
+| 4 Bake | 把网格与骨架烘到 canonical 帧（站地、朝 +Z） | 不改绑定拓扑 |
+
+第 2 步默认停下来等 review（`REVIEW.md`、`annotation_preview.png`）。
+标签或朝向错了整段动作就废——所以它不是全自动的。
+
+### 5.2 四条硬条件
+
+| 条件 | 怎么查 | 不过怎么办 |
+|---|---|---|
+| 关节数 5~70（模型吃 ≤71；truebones 权重到 85） | `unimate-inspect.sh` 的「关节数」 | `unimate-simplify.sh` |
+| 单 armature（一个文件一套骨架） | inspect 输出的 armature 列表 | 先合并或删掉多余骨架 |
+| 关节能映射到标签词表 | `REVIEW.md` 里 flagged 的骨头 | 手改 `annotation.json` 的 `label` |
+| 朝向对可判定（两关节水平分开） | `annotation_preview.png` 的绿箭头 | `--face_r` / `--face_l` 手动指定 |
+
+### 5.3 哪些形体支持
+
+训练数据覆盖 bipedal（两足）、quadrupedal（四足）、avian（鸟）、marine（水生）、
+insectoid（虫）、serpentine（蛇）、articulated rigid objects（带关节的刚体物件）。
+
+| 权重 | 关节 | 说明 |
+|---|---|---|
+| `unimate_uniml3d_f60_v3` | 5–70 | 通用，推荐 |
+| `unimate_mixamo_f60_v2` | 22 固定 | 只吃 Mixamo 22 关节人体 |
+| `unimate_truebones_f60_v2` | 5–85 | 动物专用，能吃到 85 关节（唯一不支持 Dragon） |
+
+实测过的四个：X Bot 65→22（两足）、Eagle 51（鸟）、shark 16（鱼）、unitree_go2 18（四足机器人）。
+
+容易翻车的情况：比例极端、密集骨架（全套手指 + 表情）、部件语义模糊（抽象雕塑）、
+rest pose 躺倒或倒置（加 `--rest_rotation x180` 摆正）、训练里稀有的体形。
+
+### 5.4 外部绑定工具
+
+| 工具 | 适合 | 出来之后怎么接 |
+|---|---|---|
+| Mixamo 自动绑定（免费） | 人形首选 | 65 关节 → `--mode mixamo` 削到 22 |
+| Blender Rigify | 人形，可定制 | 骨名不固定 → `--mode keep/drop` 指定正则 |
+| AccuRig / Meshy / Tripo | 人形、四足 | 视工具输出，先跑 `unimate-inspect.sh` 看关节数 |
+| 手工绑定 | 蛇、虫、花等特殊体形 | 目前没有可靠的全自动方案 |
+
+**四足特别提醒**：前腿按手臂标签（`Shoulder` / `Upper Arm` / `Forearm` / `Hand`），
+后腿按腿标签（`Thigh` / `Shin` / `Foot` / `Toe`），朝向对仍取左右大腿。
+完整规范在 UniMate 的 `data_process/rig_preprocess/AGENTS.md`，改标签前先读它。
+
+## 6. 从零到出片
+
+前提：**资产已经绑定好**（没绑定先看第 5 节）。
 
 ```bash
-cp config.example.env config.env      # 填 UNIMATE_HOME / UNIMATE_PYTHON / UNIMATE_EXP
+cp config.example.env config.env      # 填 UNIMATE_HOME / UNIMATE_PYTHON
 bash setup.sh                          # 依赖自检
 bash scripts/install_blender_shim.sh   # 一次性：让 UniMate 的 blender 调用走 bpy
 
-# 体检 -> 精简 -> 打标签 -> 采样 -> 导出
+# 0. （可选）先单独体检，避免跑完管线才发现关节不对
+bash scripts/unimate-inspect.sh --input /path/to/model.fbx --no-bones
+#    超了先精简：Mixamo 绑定用 --mode mixamo，其它骨架用 --drop 正则
+bash scripts/unimate-simplify.sh --input /path/to/model.fbx --mode mixamo
+
+# 1. 一条龙：体检 -> 精简（超标才跑）-> 打标签 -> 采样 -> 导出
 bash scripts/unimate-pipeline.sh --input /path/to/model.fbx --reps 3
 
-# 循环化 + 打包 Unity
+# 2. 循环化 + 打包 Unity
 bash scripts/unimate-loop.sh --samples outputs/samples/<资产名> --name <资产名> \
     --rig outputs/rig/<资产名>/<资产名>.glb
 ```
 
-## 6. 硬约束（踩过坑的）
+
+## 7. 硬约束（踩过坑的）
 
 | 约束 | 原因 / 后果 |
 |---|---|
@@ -143,8 +208,9 @@ bash scripts/unimate-loop.sh --samples outputs/samples/<资产名> --name <资�
 | 必须有 `blender` 命令 | UniMate 的导出脚本写死调用它；没有装 Blender 就用 shim |
 | 模型吃的是**标签**不是骨名 | 标签错 = 动作错；每个资产都要看 `preview.png` 和 `REVIEW.md` |
 | 动作是原地（in-place） | 位移交给引擎；不要期待根位移 |
+| **资产必须已经绑定** | 本工程不建骨、不算权重；只有网格没有骨架的资产无处可动（第 5 节） |
 
-## 7. 排错速查
+## 8. 排错速查
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
@@ -155,7 +221,7 @@ bash scripts/unimate-loop.sh --samples outputs/samples/<资产名> --name <资�
 | 生成的动作"抖"或"不像" | prompt 风格不对 / cfg 太低 | 照 `An object ...` 句式；`--cfg_scale 5~7` |
 | 循环处一跳 | 没做循环化 | 走 `unimate-loop.sh`（有周期就剪，没周期用 `--close`） |
 
-## 8. 改动本工程时
+## 9. 改动本工程时
 
 - 改完跑一遍 `bash -n`（脚本）和 `python -m py_compile`（工具）。
 - 对上游的调用只允许出现在 `tools/unimate_api.py`；其它文件不许 `import unimate`。

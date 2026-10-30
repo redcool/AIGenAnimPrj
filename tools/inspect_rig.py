@@ -61,6 +61,14 @@ def main() -> None:
     arm = arms[0]
     bone_names = [b.name for b in arm.data.bones]
 
+    # 绑定状态：网格上有没有 armature 修改器、有没有顶点组
+    skinned = []
+    for m in meshes:
+        has_mod = any(md.type == "ARMATURE" for md in m.modifiers)
+        skinned.append({"name": m.name, "verts": len(m.data.vertices),
+                        "armature_modifier": has_mod,
+                        "vertex_groups": len(m.vertex_groups)})
+
     # 哪些骨头真的有顶点权重
     weighted = set()
     for m in meshes:
@@ -80,6 +88,9 @@ def main() -> None:
     result = {
         "input": args.input,
         "armature": arm.name,
+        "armature_count": len(arms),
+        "armatures": [a.name for a in arms],
+        "skinned_meshes": skinned,
         "bone_count": len(bone_names),
         "meshes": [{"name": m.name, "verts": len(m.data.vertices),
                     "vertex_groups": len(m.vertex_groups)} for m in meshes],
@@ -93,11 +104,21 @@ def main() -> None:
     }
 
     log(f"文件      : {args.input}")
-    log(f"armature  : {arm.name}")
+    log(f"armature  : {arm.name}" + (f"（共 {len(arms)} 个，只用第一个）" if len(arms) > 1 else ""))
+    if len(arms) > 1:
+        log(f"  ↑ 注意：UniMate 要求一个文件一套骨架，多余的要先合并或删掉")
     log(f"关节数    : {len(bone_names)}"
         f"   （UniMate 上限 71 / Mixamo 原始 65 / UniML3D 版 22）")
     log(f"网格      : " + ", ".join(f"{m['name']}({m['verts']}顶/{m['vertex_groups']}组)"
                                     for m in result["meshes"]))
+    # 按主网格（顶点最多那个）判断是否绑定，顺带列出没绑的零碎对象
+    main_mesh = max(skinned, key=lambda s: s["verts"]) if skinned else None
+    main_ok = bool(main_mesh and main_mesh["armature_modifier"] and main_mesh["vertex_groups"])
+    unbound = [s["name"] for s in skinned
+               if not (s["armature_modifier"] and s["vertex_groups"])]
+    log(f"蒙皮      : " + ("已绑定" if main_ok else "未绑定（主网格缺 armature 修改器或顶点组）"))
+    if main_ok and unbound:
+        log(f"            附带未绑定对象: {unbound}（不影响，导出时会被丢掉）")
     log(f"动作      : {result['actions'] or '无'}")
     log(f"带权重的骨: {len(weighted)} / {len(bone_names)}")
     if unweighted:
