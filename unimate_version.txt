@@ -1,0 +1,8 @@
+# 本工程验证过的 UniMate commit（tools/pipeline_config.py 会对照检查）
+b78c7807df7cf4231d4e67f8d0ece29c5e11025b
+
+# 来源
+# repo   : https://github.com/Friedrich-M/UniMate
+# commit : b78c7807df7cf4231d4e67f8d0ece29c5e11025b
+# date   : 2026-10-07
+# 说明   : 只读依赖，本工程不修改该仓库的任何文件
